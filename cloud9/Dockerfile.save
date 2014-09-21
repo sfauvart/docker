@@ -1,0 +1,56 @@
+FROM phusion/baseimage:0.9.13
+MAINTAINER Sebastien FAUVART <sebastien.fauvart@gmail.com>
+
+# ------------------------------------------------------------------------------
+# Install base
+RUN apt-get update
+RUN apt-get install -y build-essential g++ curl libssl-dev apache2-utils git libxml2-dev
+
+# ------------------------------------------------------------------------------
+# Install Node.js with NVM
+RUN curl https://raw.githubusercontent.com/creationix/nvm/v0.16.1/install.sh | bash
+RUN /bin/bash -c '. ~/.nvm/nvm.sh && nvm install v0.8.28 && nvm alias default v0.8.28 && nvm use v0.8.28 && ln -s ~/.nvm/v0.8.28/bin/node /usr/bin/node && ln -s /.nvm/v0.8.28/bin/npm /usr/bin/npm'
+
+# ------------------------------------------------------------------------------
+# Install Cloud9
+RUN git clone https://github.com/ajaxorg/cloud9/ /cloud9
+WORKDIR /cloud9
+RUN ~/.nvm/v0.8.28/bin/npm install
+
+RUN ~/.nvm/v0.8.28/bin/npm install -g sm
+
+WORKDIR /cloud9/node_modules/ace
+RUN make clean build
+
+WORKDIR /cloud9/node_modules/packager
+RUN rm -rf node_modules
+RUN sm install
+    
+WORKDIR /cloud9
+CMD ["make"]
+
+RUN node ./node_modules/mappings/scripts/postinstall-notice.js
+
+# Add supervisord conf
+#ADD conf/cloud9.conf /etc/supervisor/conf.d/
+
+# ------------------------------------------------------------------------------
+# Add volumes
+RUN mkdir /workspace
+VOLUME /workspace
+
+# ------------------------------------------------------------------------------
+# Clean up APT when done.
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# ------------------------------------------------------------------------------
+# Expose ports.
+EXPOSE 3131
+
+# ------------------------------------------------------------------------------
+# Start supervisor, define default command.
+#CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+
+WORKDIR /workspace
+ENTRYPOINT ["/cloud9/bin/cloud9.sh"]
+CMD ["-l", "0.0.0.0"]
