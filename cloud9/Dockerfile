@@ -12,7 +12,9 @@ RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 # ------------------------------------------------------------------------------
 # Install Node.js with NVM
 ENV PROFILE /etc/profile
+ENV NVM_DIR /usr/local/nvm
 RUN curl https://raw.githubusercontent.com/creationix/nvm/v0.16.1/install.sh | bash
+RUN chmod -R u+rwX,g+rwX,o+rX /usr/local/nvm
 RUN source /etc/profile
 RUN /bin/bash -l -c 'nvm install v0.8.28'
 RUN /bin/bash -l -c 'nvm alias default v0.8.28 && nvm use v0.8.28'
@@ -36,6 +38,11 @@ WORKDIR /cloud9
 CMD ["make"]
 
 RUN /bin/bash -l -c 'node ./node_modules/mappings/scripts/postinstall-notice.js'
+# Fix port behind reverse proxy
+# RUN sed -i "s/return schema + ':\/\/' + this.hostname + port + this.path + query;/return this.path + query;/" node_modules/engine.io-client/lib/transports/polling.js
+# Fix sessions files
+RUN mkdir .sessions
+RUN chmod -R 777 .sessions
 
 # ------------------------------------------------------------------------------
 # Add volumes
@@ -48,14 +55,16 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # ------------------------------------------------------------------------------
 # Expose ports.
-EXPOSE 3131
+# EXPOSE 3131
 
 # ------------------------------------------------------------------------------
-# Start supervisor, define default command.
-#CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf"]
-
+# Create the runit script
 RUN mkdir /etc/service/cloud9
 ADD cloud9.sh /etc/service/cloud9/run
+RUN chmod +x /etc/service/cloud9/run
+
+# create a user www-data
+#USER www-data
 
 WORKDIR /workspace
 CMD ["/sbin/my_init"]
